@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stegano Web App - Vibecoding Pro</title>
+    <title>Stegano Web App - Vibecoding Pro Max</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -229,7 +229,7 @@
             background: #000;
         }
 
-        textarea, input[type="password"] {
+        textarea, input[type="password"], select.crypto-select {
             width: 100%;
             padding: 12px;
             background: rgba(0, 0, 0, 0.2);
@@ -241,12 +241,27 @@
             transition: border-color 0.3s;
         }
 
+        select.crypto-select {
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 1em;
+        }
+
+        select.crypto-select option {
+            background: var(--bg-color);
+            color: white;
+        }
+
         textarea {
             resize: vertical;
             min-height: 100px;
         }
 
-        textarea:focus, input[type="password"]:focus {
+        textarea:focus, input[type="password"]:focus, select.crypto-select:focus {
             outline: none;
             border-color: var(--primary);
         }
@@ -343,6 +358,15 @@
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
+        
+        .flex-row {
+            display: flex;
+            gap: 10px;
+        }
+        .flex-row .input-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
     </style>
 </head>
 <body>
@@ -354,7 +378,7 @@
 
     <header>
         <h1>SteganoMagia</h1>
-        <p class="subtitle">Skrytie textu do obrázka (Client-Side LSB technológia)</p>
+        <p class="subtitle">Pokročilá Client-Side Steganografia & Kryptografia</p>
     </header>
 
     <div class="app-container">
@@ -371,15 +395,25 @@
                     <span id="capacityBadge" class="capacity-badge">Kapacita: 0 znakov</span>
                 </label>
                 <label for="encodeImage" class="file-upload-btn drop-zone" id="encodeFileLabel">
-                    Kliknite pre výber alebo potiahnite súbor sem (Drag & Drop)
+                    Kliknite pre výber alebo potiahnite súbor sem
                 </label>
                 <input type="file" id="encodeImage" accept="image/png, image/jpeg">
                 <img id="encodePreview" class="image-preview" alt="Náhľad obrázka">
             </div>
             
-            <div class="input-group">
-                <label>2. Voliteľné: Ochranný PIN / Heslo</label>
-                <input type="password" id="encodePassword" placeholder="Zadajte heslo pre extra šifrovanie...">
+            <div class="flex-row" style="margin-bottom: 20px;">
+                <div class="input-group">
+                    <label>2. Algoritmus</label>
+                    <select id="encodeAlgo" class="crypto-select">
+                        <option value="xor">XOR (Základné)</option>
+                        <option value="vigenere">Vigenère (Klasika)</option>
+                        <option value="rc4" selected>RC4 (Hacker Mód)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Heslo (Voliteľné)</label>
+                    <input type="password" id="encodePassword" placeholder="Tajný kľúč...">
+                </div>
             </div>
 
             <div class="input-group">
@@ -405,9 +439,19 @@
                 <img id="decodePreview" class="image-preview" alt="Náhľad obrázka">
             </div>
 
-            <div class="input-group">
-                <label>2. Ochranný PIN / Heslo (Ak bolo použité)</label>
-                <input type="password" id="decodePassword" placeholder="Zadajte heslo...">
+            <div class="flex-row" style="margin-bottom: 20px;">
+                <div class="input-group">
+                    <label>2. Algoritmus</label>
+                    <select id="decodeAlgo" class="crypto-select">
+                        <option value="xor">XOR (Základné)</option>
+                        <option value="vigenere">Vigenère (Klasika)</option>
+                        <option value="rc4" selected>RC4 (Hacker Mód)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Heslo</label>
+                    <input type="password" id="decodePassword" placeholder="Tajný kľúč...">
+                </div>
             </div>
 
             <button class="action-btn" id="btnDecode" onclick="decodeMessage()">Odhaľ tajomstvo!</button>
@@ -460,7 +504,6 @@
             const label = document.getElementById(labelId);
             const preview = document.getElementById(previewId);
 
-            // Drag and drop events
             label.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 label.classList.add('dragover');
@@ -477,7 +520,6 @@
                 }
             });
 
-            // Click upload event
             input.addEventListener('change', handleFileChange);
 
             function handleFileChange() {
@@ -490,11 +532,9 @@
                         preview.src = e.target.result;
                         preview.style.display = 'block';
 
-                        // Vypočítanie kapacity pre Encode tab
                         if(isEncode) {
                             const img = new Image();
                             img.onload = function() {
-                                // Kapacita: (Šírka * Výška * 3 (RGB)) / 8 bitov = počet Bajtov
                                 const maxBytes = Math.floor((img.width * img.height * 3) / 8);
                                 const capacityBadge = document.getElementById('capacityBadge');
                                 capacityBadge.innerText = `Max kapacita: ~${maxBytes} znakov`;
@@ -511,21 +551,67 @@
         setupFileInput('encodeImage', 'encodeFileLabel', 'encodePreview', true);
         setupFileInput('decodeImage', 'decodeFileLabel', 'decodePreview', false);
 
-        // --- Steganografia LSB s XOR šifrovaním ---
-        // Používame byty ako delimiter, aby sme predišli problémom s UTF-8 po XOR šifrovaní
+        // --- KRYPTOGRAFICKÉ ALGORITMY ---
+
+        // 1. XOR (Najjednoduchší)
+        function cryptoXOR(key, bytes) {
+            let result = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++) {
+                result[i] = bytes[i] ^ key.charCodeAt(i % key.length);
+            }
+            return result;
+        }
+
+        // 2. Vigenère (Klasika, upravená pre bajty)
+        function cryptoVigenere(key, bytes, isDecode = false) {
+            let result = new Uint8Array(bytes.length);
+            for(let i = 0; i < bytes.length; i++) {
+                let k = key.charCodeAt(i % key.length) % 256;
+                if(isDecode) {
+                    result[i] = (bytes[i] - k + 256) % 256;
+                } else {
+                    result[i] = (bytes[i] + k) % 256;
+                }
+            }
+            return result;
+        }
+
+        // 3. RC4 (Kyberpunk prúdová šifra)
+        function cryptoRC4(key, bytes) {
+            let s = [], j = 0, x;
+            for (let i = 0; i < 256; i++) {
+                s[i] = i;
+            }
+            for (let i = 0; i < 256; i++) {
+                j = (j + s[i] + key.charCodeAt(i % key.length)) % 256;
+                x = s[i]; s[i] = s[j]; s[j] = x;
+            }
+            let i = 0; j = 0;
+            let result = new Uint8Array(bytes.length);
+            for (let y = 0; y < bytes.length; y++) {
+                i = (i + 1) % 256;
+                j = (j + s[i]) % 256;
+                x = s[i]; s[i] = s[j]; s[j] = x;
+                result[y] = bytes[y] ^ s[(s[i] + s[j]) % 256];
+            }
+            return result;
+        }
+
+        // --- Steganografia LSB ---
         const DELIMITER = [124, 124, 124]; // ASCII pre "|||"
 
         function encodeMessage() {
             const fileInput = document.getElementById('encodeImage');
             const secretText = document.getElementById('secretText').value;
             const password = document.getElementById('encodePassword').value;
+            const algo = document.getElementById('encodeAlgo').value;
             const btn = document.getElementById('btnEncode');
 
             if (!fileInput.files[0]) return showToast('Prosím, vyberte obrázok!', 'error');
             if (!secretText) return showToast('Prosím, zadajte tajnú správu!', 'error');
 
             btn.classList.add('processing');
-            btn.innerText = 'Šifrujem...';
+            btn.innerText = 'Šifrujem a schovávam...';
 
             setTimeout(() => {
                 const reader = new FileReader();
@@ -544,14 +630,14 @@
                         const encoder = new TextEncoder();
                         let textBytes = encoder.encode(secretText);
 
-                        // XOR Šifrovanie ak je zadané heslo
+                        // Aplikácia zvoleného šifrovania
                         if (password) {
-                            for (let i = 0; i < textBytes.length; i++) {
-                                textBytes[i] ^= password.charCodeAt(i % password.length);
-                            }
+                            if (algo === 'xor') textBytes = cryptoXOR(password, textBytes);
+                            else if (algo === 'vigenere') textBytes = cryptoVigenere(password, textBytes, false);
+                            else if (algo === 'rc4') textBytes = cryptoRC4(password, textBytes);
                         }
 
-                        // Spojenie tajnej správy a delimitera do jedného poľa
+                        // Spojenie tajnej správy a delimitera
                         let finalBytes = new Uint8Array(textBytes.length + DELIMITER.length);
                         finalBytes.set(textBytes);
                         finalBytes.set(DELIMITER, textBytes.length);
@@ -567,6 +653,7 @@
                             return showToast('Správa je príliš dlhá pre tento obrázok!', 'error');
                         }
 
+                        // Vkladanie bitov do LSB
                         let bitIndex = 0;
                         for (let i = 0; i < data.length; i += 4) {
                             for (let j = 0; j < 3; j++) {
@@ -584,25 +671,26 @@
                         downloadLink.href = canvas.toDataURL('image/png');
                         downloadLink.style.display = 'inline-block';
                         
-                        showToast('Úspech! Dáta sú bezpečne v pixeloch.', 'success');
+                        showToast(`Úspech! Zašifrované pomocou ${algo.toUpperCase()}.`, 'success');
                         btn.classList.remove('processing');
                         btn.innerText = 'Generovať WOW Efekt (Skryť)';
                     };
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(fileInput.files[0]);
-            }, 100); // Malý timeout pre UI update
+            }, 100);
         }
 
         function decodeMessage() {
             const fileInput = document.getElementById('decodeImage');
             const password = document.getElementById('decodePassword').value;
+            const algo = document.getElementById('decodeAlgo').value;
             const btn = document.getElementById('btnDecode');
 
             if (!fileInput.files[0]) return showToast('Prosím, vyberte zašifrovaný obrázok!', 'error');
 
             btn.classList.add('processing');
-            btn.innerText = 'Dekódujem...';
+            btn.innerText = 'Analyzujem pixely...';
 
             setTimeout(() => {
                 const reader = new FileReader();
@@ -643,23 +731,23 @@
                         }
 
                         if (delimIndex !== -1) {
-                            let messageBytes = bytes.slice(0, delimIndex);
+                            let messageBytes = new Uint8Array(bytes.slice(0, delimIndex));
 
-                            // Dešifrovanie XOR, ak je prítomné heslo
+                            // Dešifrovanie
                             if (password) {
-                                for (let i = 0; i < messageBytes.length; i++) {
-                                    messageBytes[i] ^= password.charCodeAt(i % password.length);
-                                }
+                                if (algo === 'xor') messageBytes = cryptoXOR(password, messageBytes);
+                                else if (algo === 'vigenere') messageBytes = cryptoVigenere(password, messageBytes, true);
+                                else if (algo === 'rc4') messageBytes = cryptoRC4(password, messageBytes);
                             }
 
                             try {
                                 const decoder = new TextDecoder('utf-8', { fatal: true });
-                                const secretMessage = decoder.decode(new Uint8Array(messageBytes));
+                                const secretMessage = decoder.decode(messageBytes);
                                 document.getElementById('revealedText').value = secretMessage;
                                 showToast('Správa úspešne dekódovaná!', 'success');
                             } catch (e) {
                                 document.getElementById('revealedText').value = '';
-                                showToast('Chyba dekódovania. Nesprávne heslo?', 'error');
+                                showToast('Chyba dekódovania. Nesprávny algoritmus alebo heslo?', 'error');
                             }
                         } else {
                             document.getElementById('revealedText').value = '';
